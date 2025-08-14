@@ -3,7 +3,10 @@ const Books = require("../models/books.model");
 //METHOD 3
 const getAllBooks = async (req, res) => {
   try {
-    let allBooks = await Books.find().populate("category");
+    let allBooks = await Books.find().populate(
+      "category user",
+      "firstName lastName"
+    );
     res.status(200).json({
       data: allBooks,
     });

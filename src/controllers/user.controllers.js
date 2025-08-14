@@ -1,7 +1,10 @@
 const User = require("../models/users.model");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
+const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
+const Books = require("../models/books.model");
+const apiResponse = require("../utils/apiResponse");
 
 const signUserUp = async (req, res) => {
   try {
@@ -43,7 +46,6 @@ const signUserIn = async (req, res) => {
     const userDetails = await User.findOne({
       emailAddress,
     });
-    console.log(userDetails);
     if (userDetails) {
       let checkPassword = await bcrypt.compare(password, userDetails.password);
       if (checkPassword) {
@@ -53,8 +55,9 @@ const signUserIn = async (req, res) => {
           },
           "nfbdibfidbfdfbd"
         );
-        console.log(userToken);
-        res.send("Welcome home");
+        apiResponse(res, "Signin successful", 200, true, {
+          token: userToken,
+        });
       } else {
         res.send("User does not exist");
       }
@@ -69,7 +72,48 @@ const signUserIn = async (req, res) => {
   }
 };
 
+const lendBook = async (req, res) => {
+  try {
+    const isValidId = mongoose.Types.ObjectId.isValid(req.body.bookId);
+
+    if (!isValidId)
+      apiResponse(res, "Book id is not valid", 400, false, null, {
+        message: "Book id is not valid",
+      });
+    const bookData = await Books.findById(req.body.bookId);
+    if (bookData) {
+      if (bookData.quantity) {
+        let updatedBook = await Books.updateOne(
+          {
+            _id: req.body.bookId,
+          },
+          {
+            quantity: +bookData.quantity - 1,
+            $push: {
+              user: req.user._id,
+            },
+          },
+          { _new: true }
+        );
+        //   bookData.quantity = +bookData.quantity - 1;
+        //   bookData.user;
+        //   bookData.save();
+        apiResponse(res, "Book loaned successfully", 200, true, updatedBook);
+      } else {
+        apiResponse(res, "You can't borrow book for now", 400, false);
+      }
+    } else {
+      apiResponse(res, "Book does not exist", 404, false);
+    }
+  } catch (err) {
+    apiResponse(res, "An error occurred while lending book", 500, false, null, {
+      message: err.message,
+    });
+  }
+};
+
 module.exports = {
   signUserUp,
   signUserIn,
+  lendBook,
 };
